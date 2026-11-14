@@ -1,0 +1,23 @@
+{
+  "Perceptron": {
+    "test_loss": 0.275672754240036,
+    "test_accuracy": 0.9231,
+    "best_epoch": 10,
+    "training_seconds": 110.65086245536804,
+    "checkpoint": "perceptron_best.pt"
+  },
+  "Deep_L2": {
+    "test_loss": 0.13544210997521877,
+    "test_accuracy": 0.9587,
+    "best_epoch": 14,
+    "training_seconds": 129.81746292114258,
+    "checkpoint": "deep_l2_best.pt"
+  },
+  "CNN_no_dropout": {
+    "test_loss": 0.025494309412946482,
+    "test_accuracy": 0.9945,
+    "best_epoch": 12,
+    "training_seconds": 1932.12229514122,
+    "checkpoint": "cnn_no_dropout_best.pt"
+  }
+}

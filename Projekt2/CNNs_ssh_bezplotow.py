@@ -1,16 +1,4 @@
 #!/usr/bin/env python3
-"""
-MNIST classification for SSH / headless servers.
-
-Runs Perceptron, Deep (with L2 weight decay), and CNN (without Dropout
-and without weight decay). Saves plots, CSV files, confusion matrices,
-logs (when stdout is redirected), and best-validation checkpoints.
-
-Example:
-    python -u mnist_ssh.py --epochs-perceptron 20 --epochs-deep 30 --epochs-cnn 18
-
-If the server has a GPU, it is used automatically. Otherwise CPU is used.
-"""
 
 import argparse
 import copy
@@ -22,10 +10,6 @@ import time
 from pathlib import Path
 
 import numpy as np
-
-import matplotlib
-matplotlib.use("Agg")  # no display required on SSH
-import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
@@ -271,7 +255,6 @@ def train_model(
     elapsed = time.time() - start_time
 
     save_history_csv(history, output_dir / f"{model_name.lower()}_history.csv")
-    plot_history(history, model_name, output_dir / f"{model_name.lower()}_learning_curves.png")
 
     print(
         f"{model_name}: finished in {elapsed / 60:.1f} min; "
@@ -293,35 +276,6 @@ def save_history_csv(history, path):
         writer.writerows(zip(*(history[key] for key in keys)))
 
 
-def plot_history(history, model_name, path):
-    epochs = history["epoch"]
-
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
-
-    axes[0].plot(epochs, history["train_loss"], "o-", label="Training")
-    axes[0].plot(epochs, history["val_loss"], "o-", label="Validation")
-    axes[0].set_xlabel("Epoch")
-    axes[0].set_ylabel("NLL loss")
-    axes[0].set_title("Loss")
-    axes[0].grid(alpha=0.3)
-    axes[0].legend()
-
-    axes[1].plot(
-        epochs, 100 * np.asarray(history["val_accuracy"]),
-        "o-", label="Validation accuracy"
-    )
-    axes[1].set_xlabel("Epoch")
-    axes[1].set_ylabel("Accuracy [%]")
-    axes[1].set_title("Validation accuracy")
-    axes[1].grid(alpha=0.3)
-    axes[1].legend()
-
-    fig.suptitle(f"{model_name}: training history")
-    fig.tight_layout()
-    fig.savefig(path, dpi=180, bbox_inches="tight")
-    plt.close(fig)
-
-
 def get_predictions(model, loader, device):
     model.eval()
     all_targets = []
@@ -336,93 +290,6 @@ def get_predictions(model, loader, device):
     return np.concatenate(all_targets), np.concatenate(all_predictions)
 
 
-def plot_confusion_matrix(model, loader, device, model_name, output_dir):
-    targets, predictions = get_predictions(model, loader, device)
-
-    cm = np.zeros((10, 10), dtype=np.int64)
-    np.add.at(cm, (targets, predictions), 1)
-
-    # Save raw matrix as CSV too.
-    np.savetxt(
-        output_dir / f"{model_name.lower()}_confusion_matrix.csv",
-        cm, delimiter=",", fmt="%d"
-    )
-
-    fig, ax = plt.subplots(figsize=(8, 7))
-    im = ax.imshow(cm, interpolation="nearest", cmap="Blues")
-    fig.colorbar(im, ax=ax, label="Number of images")
-
-    ax.set(
-        xticks=np.arange(10),
-        yticks=np.arange(10),
-        xticklabels=np.arange(10),
-        yticklabels=np.arange(10),
-        xlabel="Predicted digit",
-        ylabel="True digit",
-        title=f"{model_name}: confusion matrix (test set)"
-    )
-
-    threshold = cm.max() / 2
-    for i in range(10):
-        for j in range(10):
-            ax.text(
-                j, i, str(cm[i, j]),
-                ha="center", va="center",
-                color="white" if cm[i, j] > threshold else "black",
-                fontsize=8
-            )
-
-    fig.tight_layout()
-    fig.savefig(
-        output_dir / f"{model_name.lower()}_confusion_matrix.png",
-        dpi=200, bbox_inches="tight"
-    )
-    plt.close(fig)
-
-    off_diag = cm.copy()
-    np.fill_diagonal(off_diag, 0)
-    most_confused = np.argsort(off_diag.ravel())[::-1]
-
-    print(f"\n{model_name}: most common confusions (true -> predicted):")
-    printed = 0
-    for flat_index in most_confused:
-        true_digit, predicted_digit = np.unravel_index(flat_index, off_diag.shape)
-        count = off_diag[true_digit, predicted_digit]
-        if count == 0 or printed >= 10:
-            break
-        print(f"  {true_digit} -> {predicted_digit}: {count}")
-        printed += 1
-
-    return cm
-
-
-def plot_model_comparison(results, output_dir):
-    names = list(results.keys())
-    accuracies = [100.0 * results[name]["test_accuracy"] for name in names]
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    bars = ax.bar(names, accuracies)
-    ax.axhline(99.0, color="red", linestyle="--", label="99% target")
-    ax.set_ylabel("Test accuracy [%]")
-    ax.set_ylim(85, 100)
-    ax.set_title("MNIST: comparison of models")
-    ax.grid(axis="y", alpha=0.3)
-    ax.legend()
-
-    for bar, value in zip(bars, accuracies):
-        ax.text(
-            bar.get_x() + bar.get_width() / 2,
-            value + 0.08,
-            f"{value:.3f}%",
-            ha="center",
-            va="bottom"
-        )
-
-    fig.tight_layout()
-    fig.savefig(output_dir / "model_comparison.png", dpi=200, bbox_inches="tight")
-    plt.close(fig)
-
-
 # ---------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------
@@ -431,7 +298,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Train MNIST models and save all results for SSH use."
     )
-    parser.add_argument("--data-dir", type=Path, default=Path("./data"))
+    parser.add_argument("--data-dir", type=Path, default=Path("./data/MNIST/raw"))
     parser.add_argument("--output-dir", type=Path, default=Path("./mnist_results"))
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--num-workers", type=int, default=4)
@@ -498,9 +365,7 @@ def main():
         args.epochs_perceptron, args.output_dir, patience=5
     )
     test_loss, test_accuracy = evaluate(perceptron, test_loader, device)
-    plot_confusion_matrix(
-        perceptron, test_loader, device, "Perceptron", args.output_dir
-    )
+
     results["Perceptron"] = {
         "test_loss": test_loss,
         "test_accuracy": test_accuracy,
@@ -529,9 +394,7 @@ def main():
         args.epochs_deep, args.output_dir, patience=7
     )
     test_loss, test_accuracy = evaluate(deep, test_loader, device)
-    plot_confusion_matrix(
-        deep, test_loader, device, "Deep_L2", args.output_dir
-    )
+
     results["Deep_L2"] = {
         "test_loss": test_loss,
         "test_accuracy": test_accuracy,
@@ -561,9 +424,7 @@ def main():
         patience=args.cnn_patience, scheduler=cnn_scheduler
     )
     test_loss, test_accuracy = evaluate(cnn, test_loader, device)
-    plot_confusion_matrix(
-        cnn, test_loader, device, "CNN_no_dropout", args.output_dir
-    )
+
     results["CNN_no_dropout"] = {
         "test_loss": test_loss,
         "test_accuracy": test_accuracy,
@@ -578,7 +439,6 @@ def main():
     )
 
     # Summary.
-    plot_model_comparison(results, args.output_dir)
     summary_path = args.output_dir / "summary.csv"
     with open(summary_path, "w", newline="") as f:
         writer = csv.writer(f)
