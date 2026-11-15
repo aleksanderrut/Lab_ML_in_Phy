@@ -1,0 +1,12 @@
+{
+  "experiment": "direct",
+  "test_loss": 1.0524508374316113,
+  "test_accuracy": 0.5814185814185814,
+  "best_epoch": 40,
+  "training_seconds": 1156.7879014015198,
+  "num_classes": 17,
+  "num_train": 7998,
+  "num_validation": 1001,
+  "num_test": 1001,
+  "checkpoint": "best_model.pt"
+}
