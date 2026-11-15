@@ -1,4 +1,4 @@
 model,test_loss,test_accuracy,best_epoch,training_seconds,checkpoint
-Perceptron,0.275672754240036,0.9231,10,110.65086245536804,perceptron_best.pt
-Deep_L2,0.13544210997521877,0.9587,14,129.81746292114258,deep_l2_best.pt
-CNN_no_dropout,0.025494309412946482,0.9945,12,1932.12229514122,cnn_no_dropout_best.pt
+Perceptron,0.27567271234989166,0.9231,10,68.39587664604187,perceptron_best.pt
+Deep_L2,0.12732771045863628,0.9596,45,68.86360669136047,deep_l2_best.pt
+CNN_no_dropout,0.02562963120660279,0.9913,6,79.91715431213379,cnn_no_dropout_best.pt

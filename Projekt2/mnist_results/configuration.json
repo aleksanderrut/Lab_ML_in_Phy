@@ -1,15 +1,15 @@
 {
-  "data_dir": "data\\MNIST\\raw",
+  "data_dir": "data/MNIST/raw",
   "output_dir": "mnist_results",
   "batch_size": 128,
   "num_workers": 4,
-  "threads": 12,
+  "threads": 20,
   "seed": 123,
-  "epochs_perceptron": 20,
-  "epochs_deep": 30,
-  "epochs_cnn": 18,
+  "epochs_perceptron": 50,
+  "epochs_deep": 50,
+  "epochs_cnn": 50,
   "deep_weight_decay": 0.001,
   "cnn_lr": 0.001,
-  "cnn_patience": 5,
-  "device": "cpu"
+  "cnn_patience": 50,
+  "device": "cuda"
 }
