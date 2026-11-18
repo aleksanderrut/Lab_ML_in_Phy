@@ -1,0 +1,26 @@
+{
+  "direct": {
+    "experiment": "direct",
+    "test_loss": 1.0799884967632465,
+    "test_accuracy": 0.5734265734265734,
+    "best_epoch": 54,
+    "training_seconds": 1775.5225596427917,
+    "num_classes": 17,
+    "num_train": 7998,
+    "num_validation": 1001,
+    "num_test": 1001,
+    "checkpoint": "best_model.pt"
+  },
+  "fourier": {
+    "experiment": "fourier",
+    "test_loss": 2.8051178862641266,
+    "test_accuracy": 0.08591408591408592,
+    "best_epoch": 11,
+    "training_seconds": 198.79528307914734,
+    "num_classes": 17,
+    "num_train": 7998,
+    "num_validation": 1001,
+    "num_test": 1001,
+    "checkpoint": "best_model.pt"
+  }
+}

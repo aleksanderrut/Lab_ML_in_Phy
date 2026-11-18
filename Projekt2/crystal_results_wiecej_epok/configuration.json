@@ -1,0 +1,33 @@
+{
+  "data_dir": "crystal_data",
+  "output_dir": "crystal_results",
+  "image_size": 128,
+  "batch_size": 64,
+  "num_workers": 4,
+  "threads": 20,
+  "seed": 123,
+  "epochs": 100,
+  "learning_rate": 0.001,
+  "dropout": 0.3,
+  "patience": 100,
+  "device": "cuda",
+  "class_to_idx": {
+    "cm": 0,
+    "cmm": 1,
+    "p1": 2,
+    "p2": 3,
+    "p3": 4,
+    "p31m": 5,
+    "p3m1": 6,
+    "p4": 7,
+    "p4g": 8,
+    "p4m": 9,
+    "p6": 10,
+    "p6m": 11,
+    "pg": 12,
+    "pgg": 13,
+    "pm": 14,
+    "pmg": 15,
+    "pmm": 16
+  }
+}

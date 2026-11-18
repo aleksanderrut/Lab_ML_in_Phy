@@ -1,0 +1,12 @@
+{
+  "experiment": "fourier",
+  "test_loss": 1.6123020122577618,
+  "test_accuracy": 0.3726273726273726,
+  "best_epoch": 39,
+  "training_seconds": 416.8469364643097,
+  "num_classes": 17,
+  "num_train": 7998,
+  "num_validation": 1001,
+  "num_test": 1001,
+  "checkpoint": "best_model.pt"
+}
