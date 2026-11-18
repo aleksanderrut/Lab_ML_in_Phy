@@ -3,7 +3,7 @@
 #SBATCH -N 1
 #SBATCH -c 4
 #SBATCH --mem=10gb
-#SBATCH --time=0-02:00:00
+#SBATCH --time=0-00:29:00
 #SBATCH --job-name=CNN
 #SBATCH -p lem-gpu
 #SBATCH --gres=gpu:hopper:1

@@ -4,7 +4,6 @@
 from pathlib import Path
 import os
 import random
-
 import numpy as np
 import torch
 from torch import nn
@@ -12,9 +11,6 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 
-
-# ============================================================
-# PARAMETRY EKSPERYMENTU - zmieniaj tylko tutaj
 # ============================================================
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data" / "MNIST" / "raw"
@@ -28,6 +24,7 @@ EPOCHS_BY_MODEL = {
     "CNN_Medium": 30,
     "CNN_Large": 30,
     "CNN_Large_Dropout": 30,
+    "CNN_Small_Dropout": 30,
 }
 
 BATCH_SIZE = 128
@@ -36,27 +33,25 @@ SEED = 123
 NUM_WORKERS = 0
 
 # Regularyzacja: 0.0 = wylaczona; przykladowe wartosci do eksperymentu.
-DEEP_WEIGHT_DECAY = 0.001      # L2 dla Deep_L2 (optimizer Adam)
-CNN_DROPOUT_P = 0.5            # 0.0 = dropout wylaczony (CNN_Large_Dropout)
+DEEP_WEIGHT_DECAY = 0.001 # L^2 dla Deep_L2 (optimizer Adam)
+CNN_DROPOUT_P = 0.5 # 0.0 = dropout wylaczony (CNN_Large_Dropout)
+CNN_SMALL_DROPOUT_P = 0.5 # dropout po fc1 w CNN_Small_Dropout (jak w instrukcji)
 
 # Kazdy wariant to osobny trening i osobne pliki wynikowe.
 # Aby wykonac tylko porownania, zostaw np.
 # ("Deep", "Deep_L2", "CNN_Large", "CNN_Large_Dropout").
 MODELS_TO_TRAIN = (
-    "Perceptron",
-    "Deep",
-    "Deep_L2",
-    "CNN_Small",
-    "CNN_Medium",
-    "CNN_Large",
-    "CNN_Large_Dropout",
+    #"Perceptron",
+    #"Deep",
+    #"Deep_L2",
+    #"CNN_Small",
+    #"CNN_Medium",
+    #"CNN_Large",
+    #"CNN_Large_Dropout",
+    "CNN_Small_Dropout",  
 )
 
-
 # ============================================================
-# MODELE
-# ============================================================
-
 class Perceptron(nn.Module):
     """Jedna warstwa w pelni polaczona: 784 -> 10."""
 
@@ -122,6 +117,34 @@ class CNN_Small(nn.Module):
 
 
 
+class CNN_Small_Dropout(nn.Module):
+    """CNN_Small z aktywnym dropout po fc1 (jak w oryginalnej instrukcji)."""
+
+    def __init__(self, dropout_p=0.5):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 2, kernel_size=5)
+        self.conv2 = nn.Conv2d(2, 4, kernel_size=5)
+        # nn.Dropout2d z przykladu byl zakomentowany w forward,
+        # dlatego aktywujemy tylko dropout po pierwszej warstwie FC.
+        self.fc1 = nn.Linear(64, 20)
+        self.fc2 = nn.Linear(20, 10)
+        self.dropout_p = dropout_p
+
+    def forward(self, x):
+        x = self.conv1(x)                
+        x = F.max_pool2d(x, 2)          
+        x = F.relu(x)
+        x = self.conv2(x)                
+        x = F.max_pool2d(x, 2)          
+        x = F.relu(x)
+        x = x.view(-1, 64)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = F.dropout(x, p=self.dropout_p, training=self.training)
+        x = self.fc2(x)
+        return F.log_softmax(x, dim=1)
+
+
 class CNN_Medium(nn.Module):
     """Model pośredni: 8, 16, 32 filtrów 3x3."""
 
@@ -169,8 +192,6 @@ class CNN_Large(nn.Module):
 
 
 # ============================================================
-# TRENING I OCENA
-# ============================================================
 def train_epoch(model, train_loader, optimizer, device):
     model.train()
     loss_sum = 0.0
@@ -192,7 +213,7 @@ def train_epoch(model, train_loader, optimizer, device):
     return loss_sum / n_samples
 
 
-@torch.inference_mode()
+@torch.inference_mode() # tryp tylko używanie sieci
 def evaluate(model, loader, device, make_confusion=False):
     model.eval()
     loss_sum = 0.0
@@ -239,7 +260,6 @@ def save_confusion(cm, model_name, variant, epoch):
         header=f"epoch={epoch}; percent per true class (rows sum to 100); rows=true, columns=predicted",
     )
 
-
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -281,6 +301,7 @@ def main():
         "CNN_Medium": CNN_Medium,
         "CNN_Large": CNN_Large,                 # dropout_p=0.0
         "CNN_Large_Dropout": lambda: CNN_Large(dropout_p=CNN_DROPOUT_P),
+        "CNN_Small_Dropout": lambda: CNN_Small_Dropout(dropout_p=CNN_SMALL_DROPOUT_P),
     }
 
     for name in MODELS_TO_TRAIN:
@@ -289,7 +310,10 @@ def main():
         torch.manual_seed(SEED)
         model = model_classes[name]().to(device)
         weight_decay = DEEP_WEIGHT_DECAY if name == "Deep_L2" else 0.0
-        dropout_p = CNN_DROPOUT_P if name == "CNN_Large_Dropout" else 0.0
+        dropout_p = (
+            CNN_DROPOUT_P if name == "CNN_Large_Dropout" else
+            CNN_SMALL_DROPOUT_P if name == "CNN_Small_Dropout" else 0.0
+        )
         optimizer = torch.optim.Adam(
             model.parameters(), lr=LEARNING_RATE, weight_decay=weight_decay
         )
