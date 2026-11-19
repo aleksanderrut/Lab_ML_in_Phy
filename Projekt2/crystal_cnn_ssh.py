@@ -218,6 +218,8 @@ class CrystalDataset(Dataset):
 
     #     return image, label
 
+    #-------------------------------------
+    #metoda z wycinkiem centralnego regionu 500x500
     def __getitem__(self, idx):
         path = self.image_paths[idx]
         file_id = self.file_ids[idx]
