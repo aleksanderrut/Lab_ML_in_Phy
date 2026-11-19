@@ -401,7 +401,7 @@ def evaluate(model, loader, device):
             loss = F.nll_loss(
                 output,
                 target,
-                reduction="mean"
+                reduction="sum"
             )
 
             total_loss += loss.item()
