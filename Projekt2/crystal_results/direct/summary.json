@@ -1,9 +1,9 @@
 {
   "experiment": "direct",
-  "test_loss": 1.0524508374316113,
-  "test_accuracy": 0.5814185814185814,
-  "best_epoch": 40,
-  "training_seconds": 1156.7879014015198,
+  "test_loss": 2.04367787973745,
+  "test_accuracy": 0.25274725274725274,
+  "best_epoch": 53,
+  "training_seconds": 1585.2054874897003,
   "num_classes": 17,
   "num_train": 7998,
   "num_validation": 1001,
