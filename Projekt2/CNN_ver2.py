@@ -124,8 +124,6 @@ class CNN_Small_Dropout(nn.Module):
         super().__init__()
         self.conv1 = nn.Conv2d(1, 2, kernel_size=5)
         self.conv2 = nn.Conv2d(2, 4, kernel_size=5)
-        # nn.Dropout2d z przykladu byl zakomentowany w forward,
-        # dlatego aktywujemy tylko dropout po pierwszej warstwie FC.
         self.fc1 = nn.Linear(64, 20)
         self.fc2 = nn.Linear(20, 10)
         self.dropout_p = dropout_p
@@ -207,7 +205,7 @@ def train_epoch(model, train_loader, optimizer, device):
         loss.backward()
         optimizer.step()
 
-        loss_sum += loss.item() * labels.size(0)
+        loss_sum += loss.item() * labels.size(0) # Loss function: L = -(1/N) * sum_{i=1}^{N} log(p(y_i | x_i))
         n_samples += labels.size(0)
 
     return loss_sum / n_samples
@@ -219,7 +217,7 @@ def evaluate(model, loader, device, make_confusion=False):
     loss_sum = 0.0
     n_correct = 0
     n_samples = 0
-    cm = np.zeros((10, 10), dtype=np.int64) if make_confusion else None
+    cm = np.zeros((10, 10), dtype=np.int64) if make_confusion else None # macierz pomyłek/konfuzji
 
     for images, labels in loader:
         images = images.to(device, non_blocking=True)
@@ -227,16 +225,18 @@ def evaluate(model, loader, device, make_confusion=False):
 
         output = model(images)
         loss_sum += F.nll_loss(output, labels, reduction="sum").item()
-        predicted = output.argmax(dim=1)
-        n_correct += (predicted == labels).sum().item()
-        n_samples += labels.size(0)
+        predicted = output.argmax(dim=1) # przewidzenie
+        n_correct += (predicted == labels).sum().item() #prawdziwa wartość
+        n_samples += labels.size(0) # potrzebne do liczenia obliczanie accuracy
 
+    #macierz confuzji
         if make_confusion:
             np.add.at(cm, (labels.cpu().numpy(), predicted.cpu().numpy()), 1)
 
-    return loss_sum / n_samples, 100.0 * n_correct / n_samples, cm
+    #zwaraca funkcje straty, accuracy w porcentach, macierz pomyłek
+    return loss_sum / n_samples, 100.0 * n_correct / n_samples, cm # robię taki trochę loss_mean
 
-
+# macierz cofuzji zapis do pliku
 def save_confusion(cm, model_name, variant, epoch):
     """Zapis macierzy testowej dla best lub last; wiersz=prawda, kolumna=predykcja."""
     prefix = model_name.lower()
@@ -262,91 +262,78 @@ def save_confusion(cm, model_name, variant, epoch):
 
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(SEED)
 
-    # Dostosowanie do #SBATCH -c 4; nie wykorzystujemy wiecej rdzeni.
+    # Dostosowanie do #SBATCH -c 4; nie wykorzystujemy wiecej rdzeni. trochę nie wiem po co to trzeba było dopisać dla LEM
     cpus = int(os.environ.get("SLURM_CPUS_PER_TASK", "4"))
     torch.set_num_threads(max(1, cpus))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}; results: {OUTPUT_DIR}", flush=True)
 
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,)),
-    ])
+    transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,)),])
     full_train = datasets.MNIST(str(DATA_DIR), train=True, download=True, transform=transform)
     test_set = datasets.MNIST(str(DATA_DIR), train=False, download=True, transform=transform)
-    train_set, val_set = random_split(
-        full_train, [50000, 10000], generator=torch.Generator().manual_seed(SEED)
-    )
+    train_set, val_set = random_split(full_train, [50000, 10000], generator=torch.Generator().manual_seed(SEED))
 
     loader_kwargs = {
         "batch_size": BATCH_SIZE,
         "num_workers": NUM_WORKERS,
         "pin_memory": device.type == "cuda",
     }
+
     val_loader = DataLoader(val_set, shuffle=False, **loader_kwargs)
     test_loader = DataLoader(test_set, shuffle=False, **loader_kwargs)
 
     model_classes = {
         "Perceptron": Perceptron,
         "Deep": Deep,
-        "Deep_L2": Deep,                        # ta sama architektura, inne L2
+        "Deep_L2": Deep, # ta sama architektura, inne L2
         "CNN_Small": CNN_Small,
         "CNN_Medium": CNN_Medium,
-        "CNN_Large": CNN_Large,                 # dropout_p=0.0
+        "CNN_Large": CNN_Large, # dropout_p=0.0
         "CNN_Large_Dropout": lambda: CNN_Large(dropout_p=CNN_DROPOUT_P),
         "CNN_Small_Dropout": lambda: CNN_Small_Dropout(dropout_p=CNN_SMALL_DROPOUT_P),
     }
 
+    #pętla po 8 modelach
     for name in MODELS_TO_TRAIN:
         epochs = EPOCHS_BY_MODEL[name]
         # Osobny seed i identyczna kolejnosc tasowania danych dla kazdego modelu.
         torch.manual_seed(SEED)
         model = model_classes[name]().to(device)
         weight_decay = DEEP_WEIGHT_DECAY if name == "Deep_L2" else 0.0
-        dropout_p = (
-            CNN_DROPOUT_P if name == "CNN_Large_Dropout" else
-            CNN_SMALL_DROPOUT_P if name == "CNN_Small_Dropout" else 0.0
-        )
-        optimizer = torch.optim.Adam(
-            model.parameters(), lr=LEARNING_RATE, weight_decay=weight_decay
-        )
-        train_loader = DataLoader(
-            train_set, shuffle=True,
-            generator=torch.Generator().manual_seed(SEED), **loader_kwargs
-        )
-
+        dropout_p = (CNN_DROPOUT_P if name == "CNN_Large_Dropout" else 
+                     CNN_SMALL_DROPOUT_P if name == "CNN_Small_Dropout" else 0.0)
+        
+        optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=weight_decay)
+        train_loader = DataLoader(train_set, shuffle=True,generator=torch.Generator().manual_seed(SEED), **loader_kwargs)
         n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
         print(
             f"\n{name}: {n_params} trainable parameters; "
             f"epochs={epochs}; weight_decay={weight_decay}; dropout_p={dropout_p}",
             flush=True,
         )
+
         history_path = OUTPUT_DIR / f"{name.lower()}_history.data"
         best_path = OUTPUT_DIR / f"{name.lower()}_best.pt"
         last_path = OUTPUT_DIR / f"{name.lower()}_last.pt"
         best_val_loss = float("inf")
 
+        #włąściwa petla treningowa
         with open(history_path, "w", encoding="utf-8") as f:
             f.write("# epoch train_loss val_loss test_accuracy_percent\n")
             for epoch in range(1, epochs + 1):
                 train_loss = train_epoch(model, train_loader, optimizer, device)
                 val_loss, _, _ = evaluate(model, val_loader, device)
-                _, test_accuracy, cm = evaluate(
-                    model, test_loader, device, make_confusion=True
-                )
+                _, test_accuracy, cm = evaluate(model, test_loader, device, make_confusion=True)
 
-                # Zapis po KAZDEJ epoce (wyniki nie gina po przerwaniu joba).
-                f.write(
-                    f"{epoch} {train_loss:.8f} {val_loss:.8f} "
-                    f"{test_accuracy:.4f}\n"
-                )
+                # Zapis po KAZDEJ epoce
+                f.write(f"{epoch} {train_loss:.8f} {val_loss:.8f} "f"{test_accuracy:.4f}\n")
                 f.flush()
                 # Macierze "last" sa aktualizowane po kazdej ukonczonej epoce.
                 save_confusion(cm, name, "last", epoch)
