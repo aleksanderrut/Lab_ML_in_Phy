@@ -152,63 +152,63 @@ class CrystalDataset(Dataset):
 
     #-------------------------------------
     #metoda z resamplingiem LANCZOS
-    # def __getitem__(self, idx):
-
-    #     path = self.image_paths[idx]
-    #     file_id = self.file_ids[idx]
-
-    #     image = Image.open(path).convert("L")
-
-    #     image = image.resize(
-    #         (self.image_size, self.image_size),
-    #         Image.Resampling.LANCZOS
-    #     )
-
-    #     image = np.asarray(image, dtype=np.float32) / 255.0
-
-    #     # Normalize pixel values from [0, 1] to [-1, 1].
-    #     image = (image - 0.5) / 0.5
-
-    #     image = torch.from_numpy(image).unsqueeze(0)
-
-    #     label = self.labels[file_id]
-
-    #     return image, label
-
-    #-------------------------------------
-    #metoda z wycinkiem centralnego regionu 500x500
     def __getitem__(self, idx):
+
         path = self.image_paths[idx]
         file_id = self.file_ids[idx]
 
         image = Image.open(path).convert("L")
 
-        # Crop the central 500 x 500 region.
-        width, height = image.size
-        crop_size = 500
+        image = image.resize(
+            (self.image_size, self.image_size),
+            Image.Resampling.LANCZOS
+        )
 
-        left = (width - crop_size) // 2
-        top = (height - crop_size) // 2
-
-        image = image.crop((
-            left,
-            top,
-            left + crop_size,
-            top + crop_size
-        ))
-
-        # Convert image to a NumPy array.
         image = np.asarray(image, dtype=np.float32) / 255.0
 
-        # Normalize pixel values to [-1, 1].
+        # Normalize pixel values from [0, 1] to [-1, 1].
         image = (image - 0.5) / 0.5
 
-        # Convert to a PyTorch tensor.
         image = torch.from_numpy(image).unsqueeze(0)
 
         label = self.labels[file_id]
 
         return image, label
+
+    #-------------------------------------
+    #metoda z wycinkiem centralnego regionu 500x500
+    # def __getitem__(self, idx):
+    #     path = self.image_paths[idx]
+    #     file_id = self.file_ids[idx]
+
+    #     image = Image.open(path).convert("L")
+
+    #     # Crop the central 500 x 500 region.
+    #     width, height = image.size
+    #     crop_size = 500
+
+    #     left = (width - crop_size) // 2
+    #     top = (height - crop_size) // 2
+
+    #     image = image.crop((
+    #         left,
+    #         top,
+    #         left + crop_size,
+    #         top + crop_size
+    #     ))
+
+    #     # Convert image to a NumPy array.
+    #     image = np.asarray(image, dtype=np.float32) / 255.0
+
+    #     # Normalize pixel values to [-1, 1].
+    #     image = (image - 0.5) / 0.5
+
+    #     # Convert to a PyTorch tensor.
+    #     image = torch.from_numpy(image).unsqueeze(0)
+
+    #     label = self.labels[file_id]
+
+    #     return image, label
 
 
 # ============================================================
@@ -453,7 +453,7 @@ def train_model(
     epochs,
     output_dir,
     patience,
-    #scheduler,
+    scheduler,
     class_to_idx
 ):
 
@@ -516,7 +516,7 @@ def train_model(
             flush=True
         )
 
-        #scheduler.step(val_loss)
+        scheduler.step(val_loss)
 
         if val_loss < best_val_loss:
 
@@ -729,12 +729,12 @@ def run_experiment(
         weight_decay=0.0
     )
 
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #     optimizer,
-    #     mode="min",
-    #     factor=0.5,
-    #     patience=2
-    # )
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode="min",
+        factor=0.5,
+        patience=6
+    )
 
     history, best_epoch, elapsed, checkpoint = train_model(
         model,
@@ -746,7 +746,7 @@ def run_experiment(
         args.epochs,
         output_dir,
         args.patience,
-        #scheduler,
+        scheduler,
         class_to_idx
     )
 
@@ -844,7 +844,7 @@ def parse_args():
     parser.add_argument(
         "--epochs",
         type=int,
-        default=80
+        default=100
     )
 
     parser.add_argument(
@@ -862,7 +862,7 @@ def parse_args():
     parser.add_argument(
         "--patience",
         type=int,
-        default=8
+        default=100
     )
 
     return parser.parse_args()
