@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import argparse
 import copy
 import csv
@@ -8,10 +7,8 @@ import os
 import random
 import time
 from pathlib import Path
-
 import numpy as np
 from PIL import Image
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -19,9 +16,7 @@ from torch.utils.data import Dataset, DataLoader
 
 
 # ============================================================
-# 1. CNN MODEL
-# ============================================================
-
+# MODEL
 class CNN_small(nn.Module):
 
     def __init__(self, num_classes, dropout=0.3):
@@ -89,11 +84,8 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
-
 # ============================================================
-# 2. DATASET
-# ============================================================
-
+# DATASET
 IMAGE_EXTENSIONS = [".png"]
 
 def find_image(data_dir, stem):
