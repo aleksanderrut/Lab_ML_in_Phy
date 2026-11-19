@@ -14,7 +14,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-
 # ============================================================
 # MODEL
 class CNN_small(nn.Module):
@@ -41,11 +40,9 @@ class CNN_small(nn.Module):
         x = self.fc2(x)
         return F.softmax(x, dim=1)
 
-
 class CNN(nn.Module):
     """
     CNN for crystal net classification.
-
     Architecture:
         Conv1: 1 -> 32
         Conv2: 32 -> 64
@@ -225,11 +222,8 @@ class CrystalDataset(Dataset):
 
         return image, label
 
-
 # ============================================================
-# 3. STRATIFIED DATA SPLIT
-# ============================================================
-
+# STRATIFIED DATA SPLIT
 def stratified_split(file_ids, labels, seed):
 
     rng = np.random.default_rng(seed)
