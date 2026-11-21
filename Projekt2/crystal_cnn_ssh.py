@@ -14,6 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
+
 # ============================================================
 # MODEL
 class CNN_small(nn.Module):
@@ -40,8 +41,9 @@ class CNN_small(nn.Module):
         x = self.fc2(x)
         return F.softmax(x, dim=1)
 
+
 class CNN(nn.Module):
-    
+
     def __init__(self, num_classes, dropout=0.3):
         super().__init__()
 
@@ -72,26 +74,37 @@ class CNN(nn.Module):
 IMAGE_EXTENSIONS = [".png"]
 
 def find_image(data_dir, stem):
+
     for extension in IMAGE_EXTENSIONS:
+
         path = data_dir / f"{stem}{extension}"
+
         if path.exists():
             return path
 
+
 def load_labels(data_dir):
+
     labels_path = data_dir / "labels.json"
+
     with open(labels_path, "r") as f:
         raw_labels = json.load(f)
+
     file_ids = []
     label_names = []
 
     for item in raw_labels:
+
         file_ids.append(str(item["file_id"]))
         label_names.append(item["label"])
+
     classes = sorted(set(label_names))
+
     class_to_idx = {
         name: idx
         for idx, name in enumerate(classes)
     }
+
     labels = {
         file_id: class_to_idx[label]
         for file_id, label in zip(file_ids, label_names)
@@ -103,8 +116,18 @@ def load_labels(data_dir):
 
     return file_ids, labels, class_to_idx
 
+
 class CrystalDataset(Dataset):
-    def __init__(self, data_dir, file_ids, labels, image_size, fourier=False):
+
+    def __init__(
+        self,
+        data_dir,
+        file_ids,
+        labels,
+        image_size,
+        fourier=False
+    ):
+
         self.data_dir = data_dir
         self.file_ids = file_ids
         self.labels = labels
@@ -120,73 +143,88 @@ class CrystalDataset(Dataset):
             else:
                 stem = file_id
 
-            self.image_paths.append(find_image(data_dir, stem))
+            self.image_paths.append(
+                find_image(data_dir, stem)
+            )
 
     def __len__(self):
         return len(self.file_ids)
 
     #-------------------------------------
     #metoda z resamplingiem LANCZOS
-    # def __getitem__(self, idx):
-
-    #     path = self.image_paths[idx]
-    #     file_id = self.file_ids[idx]
-
-    #     image = Image.open(path).convert("L")
-
-    #     image = image.resize(
-    #         (self.image_size, self.image_size),
-    #         Image.Resampling.LANCZOS
-    #     )
-
-    #     image = np.asarray(image, dtype=np.float32) / 255.0
-
-    #     # Normalize pixel values from [0, 1] to [-1, 1].
-    #     image = (image - 0.5) / 0.5
-
-    #     image = torch.from_numpy(image).unsqueeze(0)
-
-    #     label = self.labels[file_id]
-
-    #     return image, label
-
-    #-------------------------------------
-    #metoda z wycinkiem centralnego regionu 500x500
     def __getitem__(self, idx):
+
         path = self.image_paths[idx]
         file_id = self.file_ids[idx]
 
         image = Image.open(path).convert("L")
 
-        # Crop the central 500 x 500 region.
-        width, height = image.size
-        crop_size = 500
+        image = image.resize(
+            (self.image_size, self.image_size),
+            Image.Resampling.LANCZOS
+        )
 
-        left = (width - crop_size) // 2
-        top = (height - crop_size) // 2
-
-        image = image.crop((left,top,left + crop_size,top + crop_size))
-
-        # Convert image to a NumPy array.
         image = np.asarray(image, dtype=np.float32) / 255.0
 
-        # Normalize pixel values to [-1, 1].
+        # Normalize pixel values from [0, 1] to [-1, 1].
         image = (image - 0.5) / 0.5
 
-        # Convert to a PyTorch tensor.
         image = torch.from_numpy(image).unsqueeze(0)
 
         label = self.labels[file_id]
 
         return image, label
 
+    #-------------------------------------
+    #metoda z wycinkiem centralnego regionu 500x500
+    # def __getitem__(self, idx):
+    #     path = self.image_paths[idx]
+    #     file_id = self.file_ids[idx]
+
+    #     image = Image.open(path).convert("L")
+
+    #     # Crop the central 500 x 500 region.
+    #     width, height = image.size
+    #     crop_size = 500
+
+    #     left = (width - crop_size) // 2
+    #     top = (height - crop_size) // 2
+
+    #     image = image.crop((
+    #         left,
+    #         top,
+    #         left + crop_size,
+    #         top + crop_size
+    #     ))
+
+    #     # Convert image to a NumPy array.
+    #     image = np.asarray(image, dtype=np.float32) / 255.0
+
+    #     # Normalize pixel values to [-1, 1].
+    #     image = (image - 0.5) / 0.5
+
+    #     # Convert to a PyTorch tensor.
+    #     image = torch.from_numpy(image).unsqueeze(0)
+
+    #     label = self.labels[file_id]
+
+    #     return image, label
+
+
 # ============================================================
-# STRATIFIED DATA SPLIT
+# 3. STRATIFIED DATA SPLIT
+# ============================================================
+
 def stratified_split(file_ids, labels, seed):
+
     rng = np.random.default_rng(seed)
+
     class_to_ids = {}
+
     for file_id in file_ids:
+
         label = labels[file_id]
+
         class_to_ids.setdefault(label, []).append(file_id)
 
     train_ids = []
@@ -194,13 +232,20 @@ def stratified_split(file_ids, labels, seed):
     test_ids = []
 
     for label, ids in class_to_ids.items():
+
         ids = np.array(ids, dtype=object)
+
         rng.shuffle(ids)
+
         n = len(ids)
+
         n_test = max(1, round(0.1 * n))
         n_val = max(1, round(0.1 * n))
+
         test_ids.extend(ids[:n_test].tolist())
+
         val_ids.extend(ids[n_test:n_test + n_val].tolist())
+
         train_ids.extend(ids[n_test + n_val:].tolist())
 
     rng.shuffle(train_ids)
@@ -214,18 +259,40 @@ def stratified_split(file_ids, labels, seed):
 
     return train_ids, val_ids, test_ids
 
+
 def save_split(train_ids, val_ids, test_ids, output_dir):
 
-    split = {"train": train_ids, "validation": val_ids, "test": test_ids}
+    split = {
+        "train": train_ids,
+        "validation": val_ids,
+        "test": test_ids
+    }
 
     with open(output_dir / "data_split.json", "w") as f:
         json.dump(split, f, indent=2)
 
-# ============================================================
-# DATA LOADERS
-def make_loaders(data_dir, train_ids, val_ids, test_ids, labels, image_size, batch_size, num_workers, device, fourier):
 
-    train_dataset = CrystalDataset(data_dir, train_ids, labels, image_size, fourier)
+# ============================================================
+# 4. DATA LOADERS
+# ============================================================
+
+def make_loaders(
+    data_dir,
+    train_ids,
+    val_ids,
+    test_ids,
+    labels,
+    image_size,
+    batch_size,
+    num_workers,
+    device,
+    fourier
+):
+
+    train_dataset = CrystalDataset(
+        data_dir, train_ids, labels,
+        image_size, fourier
+    )
 
     val_dataset = CrystalDataset(
         data_dir, val_ids, labels,
@@ -266,8 +333,11 @@ def make_loaders(data_dir, train_ids, val_ids, test_ids, labels, image_size, bat
 
     return train_loader, val_loader, test_loader
 
+
 # ============================================================
-# EVALUATION
+# 5. EVALUATION
+# ============================================================
+
 def evaluate(model, loader, device):
 
     model.eval()
@@ -288,7 +358,7 @@ def evaluate(model, loader, device):
             loss = F.nll_loss(
                 output,
                 target,
-                reduction="mean"
+                reduction="sum"
             )
 
             total_loss += loss.item()
@@ -304,13 +374,32 @@ def evaluate(model, loader, device):
         total_correct / total_samples
     )
 
+
 # ============================================================
-# TRAINING
-def train_one_epoch(model, loader, optimizer, device, epoch, experiment_name):
+# 6. TRAINING
+# ============================================================
+
+def train_one_epoch(
+    model,
+    loader,
+    optimizer,
+    device,
+    epoch,
+    experiment_name
+):
+
     model.train()
+
     total_loss = 0.0
     total_samples = 0
+<<<<<<< HEAD
     for batch_idx, (data, target) in enumerate(loader, start=1):
+=======
+
+    for batch_idx, (data, target) in enumerate(
+        loader, start=1
+    ):
+>>>>>>> 21638592919cc95f7aac91e90470055de3751a8a
 
         data = data.to(device, non_blocking=True)
         target = target.to(device, non_blocking=True)
@@ -360,7 +449,7 @@ def train_model(
     epochs,
     output_dir,
     patience,
-    #scheduler,
+    scheduler,
     class_to_idx
 ):
 
@@ -423,7 +512,7 @@ def train_model(
             flush=True
         )
 
-        #scheduler.step(val_loss)
+        scheduler.step(val_loss)
 
         if val_loss < best_val_loss:
 
@@ -479,8 +568,11 @@ def train_model(
 
     return history, best_epoch, elapsed, checkpoint_path
 
+
 # ============================================================
 # 7. CONFUSION MATRIX
+# ============================================================
+
 def get_predictions(model, loader, device):
 
     model.eval()
@@ -510,6 +602,7 @@ def get_predictions(model, loader, device):
         np.concatenate(all_targets),
         np.concatenate(all_predictions)
     )
+
 
 def save_confusion_matrix(
     model,
@@ -574,6 +667,8 @@ def save_confusion_matrix(
 
 # ============================================================
 # 8. SINGLE EXPERIMENT
+# ============================================================
+
 def run_experiment(
     experiment_name,
     fourier,
@@ -629,12 +724,12 @@ def run_experiment(
         weight_decay=0.0
     )
 
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #     optimizer,
-    #     mode="min",
-    #     factor=0.5,
-    #     patience=2
-    # )
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode="min",
+        factor=0.5,
+        patience=6
+    )
 
     history, best_epoch, elapsed, checkpoint = train_model(
         model,
@@ -646,7 +741,7 @@ def run_experiment(
         args.epochs,
         output_dir,
         args.patience,
-        #scheduler,
+        scheduler,
         class_to_idx
     )
 
@@ -688,7 +783,11 @@ def run_experiment(
 
     return results
 
+
 # ============================================================
+# 9. ARGUMENTS
+# ============================================================
+
 def parse_args():
 
     parser = argparse.ArgumentParser(
@@ -740,7 +839,7 @@ def parse_args():
     parser.add_argument(
         "--epochs",
         type=int,
-        default=80
+        default=100
     )
 
     parser.add_argument(
@@ -758,13 +857,16 @@ def parse_args():
     parser.add_argument(
         "--patience",
         type=int,
-        default=8
+        default=100
     )
 
     return parser.parse_args()
 
+
 # ============================================================
-# MAIN
+# 10. MAIN
+# ============================================================
+
 def main():
 
     args = parse_args()
