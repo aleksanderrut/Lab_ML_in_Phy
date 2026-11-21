@@ -310,30 +310,21 @@ def train_one_epoch(model, loader, optimizer, device, epoch, experiment_name):
     model.train()
     total_loss = 0.0
     total_samples = 0
-    for batch_idx, (data, target) in enumerate(
-        loader, start=1
-    ):
+    for batch_idx, (data, target) in enumerate(loader, start=1):
 
         data = data.to(device, non_blocking=True)
         target = target.to(device, non_blocking=True)
-
         optimizer.zero_grad(set_to_none=True)
-
         output = model(data)
-
         loss = F.nll_loss(output, target)
-
         loss.backward()
 
         optimizer.step()
-
         batch_size = target.size(0)
-
         total_loss += loss.item() * batch_size
         total_samples += batch_size
 
         if batch_idx == 1 or batch_idx % 100 == 0:
-
             print(
                 f"{experiment_name} | "
                 f"epoch {epoch} | "
@@ -341,7 +332,6 @@ def train_one_epoch(model, loader, optimizer, device, epoch, experiment_name):
                 f"loss={loss.item():.5f}",
                 flush=True
             )
-
     return total_loss / total_samples
 
 
@@ -581,7 +571,6 @@ def save_confusion_matrix(
         printed += 1
 
     return cm
-
 
 # ============================================================
 # 8. SINGLE EXPERIMENT
